@@ -481,6 +481,7 @@
                     const { PDFDocument, rgb, StandardFonts } = PDFLib;
                     const mergedPdf = await PDFDocument.create();
                     const font = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
+                    //const pdfBaseUrl = `https://sialaichai.github.io/physics9702/${PDF_FOLDER}/`;
 					const pdfBaseUrl = `https://sialaichai.github.io/exam_db/${PDF_FOLDER}/`;
 
                     // 3. Iterate through filtered rows
@@ -497,26 +498,27 @@
                         if (!res.ok) { console.error(`Failed to fetch ${fname}`); continue; }
                         const existingPdfBytes = await res.arrayBuffer();
 
-					    const sourcePdf = await PDFDocument.load(existingPdfBytes);
-					    
-					    // --- MODIFIED: Overlay filename directly on each page ---
-					    const pages = sourcePdf.getPages(); 
+                        // Load the source PDF
+                        const sourcePdf = await PDFDocument.load(existingPdfBytes);
                         
-                        for (const page of pages) {
-                            const { height } = page.getSize();
-                            
-                            // Draw filename as red overlay at top-left margin
-                            page.drawText(`File: ${fname}`, {
-                                x: 15,                    // 15px from left edge
-                                y: 15 ,          // 20px from TOP edge (PDF coords: 0,0 = bottom-left)
-                                size: 10,
-                                font: font,
-                                color: rgb(1, 0, 0),     // Red color
-                                opacity: 0.9,            // Slight transparency so it doesn't obscure content
-                            });
-                        }
+                        // --- NEW LOGIC: Create a "Banner Page" ---
+                        // Get dimensions of the first page so our banner matches the width
+                        const firstPage = sourcePdf.getPages()[0];
+                        const { width } = firstPage.getSize();
+
+                        // Add a short page (50px height) to act as a header
+                        const bannerPage = mergedPdf.addPage([width, 30]);
                         
-                        // Now copy the MODIFIED pages (with overlay) to merged PDF
+                        // Draw Filename on this banner page
+                        bannerPage.drawText(`File: ${fname}`, {
+                            x: 15,
+                            y: 15, // Centered vertically in the 50px height
+                            size: 10,
+                            font: font,
+                            color: rgb(1, 0, 0), // Black text
+                        });
+
+                        // Copy actual pages and append them after the banner
                         const copiedPages = await mergedPdf.copyPages(sourcePdf, sourcePdf.getPageIndices());
                         copiedPages.forEach((page) => mergedPdf.addPage(page));
                     }
